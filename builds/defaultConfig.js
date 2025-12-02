@@ -14,13 +14,20 @@ const sourceMapsConfig = {
 const webpackConfig = {
   devtool: false,
   node: {
-    process: true
+    process: true,
+    dns: 'empty',
+    http2: 'empty'
+  },
+  externals: {
+    http2: '{}',
+    dns: '{}'
   },
   devServer: {
     https: true,
-    host: 'localhost',
+    host: '0.0.0.0',
     hotOnly: true,
     port: 8080,
+    disableHostCheck: true,
     headers: {
       'Strict-Transport-Security':
         'max-age=63072000; includeSubdomains; preload',
@@ -200,6 +207,12 @@ const transpilers = config => {
   config.module
     .rule('trezor-web')
     .test(/node_modules\/@trezor\/.*\.js$/)
+    .use('babel')
+    .loader('babel-loader')
+    .end();
+  config.module
+    .rule('transpile-miradorlabs')
+    .test(/node_modules\/@miradorlabs\/.*\.js$/)
     .use('babel')
     .loader('babel-loader')
     .end();

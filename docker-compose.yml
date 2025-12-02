@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - NPM_TOKEN=${NPM_TOKEN}
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/home
+      - /home/node_modules
+    environment:
+      - NODE_OPTIONS=--max-old-space-size=8192
+      - NPM_TOKEN=${NPM_TOKEN}
+    stdin_open: true
+    tty: true
+
+  prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    ports:
+      - "80:80"
