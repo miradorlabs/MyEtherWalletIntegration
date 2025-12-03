@@ -6,8 +6,14 @@ import MEWProvider from '@/utils/web3-provider';
 import WALLET_TYPES from '@/modules/access-wallet/common/walletTypes';
 import EventNames from '@/utils/web3-provider/events';
 import { EventBus } from '@/core/plugins/eventBus';
+import ParallaxService from '@/core/services/ParallaxService';
 
 const removeWallet = function ({ commit, state, dispatch, rootState }) {
+  // Finish Parallax session when wallet is removed
+  ParallaxService.finish().catch(err => {
+    console.error('Failed to finish Parallax session:', err);
+  });
+
   if (
     state.identifier === WALLET_TYPES.WALLET_CONNECT ||
     state.identifier === WALLET_TYPES.MEW_WALLET ||
@@ -33,7 +39,7 @@ const removeWallet = function ({ commit, state, dispatch, rootState }) {
   commit('REMOVE_WALLET');
 };
 
-const setWallet = async function ({ commit, dispatch }, params) {
+const setWallet = async function ({ commit, dispatch, rootGetters }, params) {
   const addrCheckRequest = await fetch(
     `https://partners.mewapi.io/o/walletscreen?address=${params[0].getAddressString()}`
   );
@@ -45,6 +51,15 @@ const setWallet = async function ({ commit, dispatch }, params) {
   commit('SET_WALLET', params[0]);
   dispatch('setWeb3Instance', params[1]);
   dispatch('external/setSelectedEIP6963Provider', params[1], { root: true });
+
+  // Initialize Parallax service when wallet is connected
+  const walletAddress = params[0].getAddressString();
+  const network = rootGetters['global/network'];
+  const networkName = network?.name || network?.type?.name || 'Unknown';
+
+  ParallaxService.initialize(walletAddress, networkName).catch(err => {
+    console.error('Failed to initialize Parallax session:', err);
+  });
 };
 const setTokens = function ({ commit }, params) {
   commit('SET_TOKENS', params);

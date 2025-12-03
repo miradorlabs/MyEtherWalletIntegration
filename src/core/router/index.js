@@ -8,6 +8,7 @@ import routesWallet from './routes-wallet';
 import routesNotFound from './routes-not-found';
 import { ROUTES_HOME } from '../configs/configRoutes';
 import Vue from 'vue';
+import ParallaxService from '@/core/services/ParallaxService';
 const routes =
   // eslint-disable-next-line
   BUILD === 'offline'
@@ -61,6 +62,14 @@ router.beforeResolve((to, from, next) => {
   }
 });
 router.afterEach(to => {
+  // Track navigation with Parallax
+  if (store.state.wallet.address) {
+    ParallaxService.trackNavigation(to.name || 'Unknown', to.path, {
+      ...to.params,
+      ...to.query
+    });
+  }
+
   const defaultTitle = 'MyEtherWallet | The Best Crypto Wallet For Web3';
   const defaultDescription =
     'Trusted by millions of users, MyEtherWallet is the first and best open source Ethereum wallet. Create a secure crypto wallet, buy, sell, stake and swap.';

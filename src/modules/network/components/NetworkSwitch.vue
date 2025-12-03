@@ -106,6 +106,7 @@ import { Toast, SUCCESS, ERROR } from '@/modules/toast/handler/handlerToast';
 
 import handlerAnalytics from '@/modules/analytics-opt-in/handlers/handlerAnalytics.mixin';
 import WALLET_TYPES from '@/modules/access-wallet/common/walletTypes';
+import ParallaxService from '@/core/services/ParallaxService';
 
 export default {
   name: 'NetworkSwitch',
@@ -344,6 +345,7 @@ export default {
      * @return {void}
      */
     setNetworkDebounced: debounce(function (value) {
+      const previousNetwork = this.networkSelectedBefore;
       this.savePreviousNetwork();
 
       const found = Object.values(this.nodes).filter(item => {
@@ -370,6 +372,19 @@ export default {
               Toast(`Switched network to: ${found[0].type.name}`, {}, SUCCESS);
               this.setTokenAndEthBalance();
               this.$emit('newNetwork');
+
+              // Track network switch with Parallax
+              ParallaxService.trackNetworkSwitch(
+                previousNetwork || 'Unknown',
+                found[0].type.name,
+                {
+                  chainId: found[0].type.chainID,
+                  networkUrl: found[0].url,
+                  walletType: this.instance?.identifier || 'Unknown'
+                }
+              ).catch(err => {
+                console.error('Failed to track network switch:', err);
+              });
             });
           } else {
             this.setWeb3Instance();
