@@ -4,6 +4,7 @@ import BigNumber from 'bignumber.js';
 import configNetworkTypes from './configNetworkTypes';
 import { Toast, ERROR } from '@/modules/toast/handler/handlerToast';
 import handleError from '@/modules/confirmation/handlers/errorHandler';
+import ParallaxService from '@/core/services/ParallaxService';
 
 /**
  * ABI to get fees
@@ -194,6 +195,15 @@ export default class Staked {
    */
   getValidators() {
     this.loadingValidators = true;
+
+    // Track validators fetch request
+    ParallaxService.addSpanEvent('staking_fetch_validators', {
+      address: this.address,
+      network: this.network?.type?.name || 'Unknown'
+    }).catch(err => {
+      console.error('Failed to track staking validators fetch:', err);
+    });
+
     return axios
       .get(`${this.endpoint}/history?address=${this.address}`, {
         header: {
@@ -209,6 +219,17 @@ export default class Staked {
               : 0;
           return new BigNumber(total).plus(balanceETH);
         }, 0);
+
+        // Track validators retrieved
+        ParallaxService.addSpanEvent('staking_validators_retrieved', {
+          address: this.address,
+          validatorsCount: resp.data.length,
+          totalStaked: this.myETHTotalStaked.toString(),
+          network: this.network?.type?.name || 'Unknown'
+        }).catch(err => {
+          console.error('Failed to track staking validators retrieved:', err);
+        });
+
         // check withdrawals
         this.getExitableValidators(resp.data);
       })
@@ -222,6 +243,16 @@ export default class Staked {
           this.getExitableValidators([]);
           return;
         }
+
+        // Track validators fetch error
+        ParallaxService.addSpanEvent('staking_fetch_validators_error', {
+          address: this.address,
+          error: err?.message || err?.toString(),
+          network: this.network?.type?.name || 'Unknown'
+        }).catch(err => {
+          console.error('Failed to track staking validators fetch error:', err);
+        });
+
         this.loadingValidators = false;
         this.myValidators = [];
         Toast(err, {}, ERROR);
@@ -233,6 +264,17 @@ export default class Staked {
    */
   async startProvision(params) {
     this.validatorsCount = params.count;
+
+    // Track provision start
+    ParallaxService.addSpanEvent('staking_provision_start', {
+      address: this.address,
+      validatorsCount: params.count,
+      eth2Address: params.eth2Address,
+      network: this.network?.type?.name || 'Unknown'
+    }).catch(err => {
+      console.error('Failed to track staking provision start:', err);
+    });
+
     await axios
       .post(
         this.endpoint + '/v2/provision',
@@ -248,11 +290,33 @@ export default class Staked {
         }
       )
       .then(response => {
-        return response && response.data.provisioning_request_uuid
-          ? this.startPolling(response.data.provisioning_request_uuid)
-          : Toast(this.$t('dappsStaked.error-try-again'), {}, ERROR);
+        if (response && response.data.provisioning_request_uuid) {
+          // Track provision success
+          ParallaxService.addSpanEvent('staking_provision_success', {
+            address: this.address,
+            validatorsCount: params.count,
+            provisioningUuid: response.data.provisioning_request_uuid,
+            network: this.network?.type?.name || 'Unknown'
+          }).catch(err => {
+            console.error('Failed to track staking provision success:', err);
+          });
+
+          return this.startPolling(response.data.provisioning_request_uuid);
+        } else {
+          return Toast(this.$t('dappsStaked.error-try-again'), {}, ERROR);
+        }
       })
       .catch(err => {
+        // Track provision error
+        ParallaxService.addSpanEvent('staking_provision_error', {
+          address: this.address,
+          validatorsCount: params.count,
+          error: err?.message || err?.toString(),
+          network: this.network?.type?.name || 'Unknown'
+        }).catch(err => {
+          console.error('Failed to track staking provision error:', err);
+        });
+
         this.pollingStatus = { success: false, error: err };
       });
   }
@@ -308,17 +372,60 @@ export default class Staked {
     this.transactionData.from = this.address;
     this.transactionData.to =
       configNetworkTypes.network[this.network.type.name].batchContract;
+
+    // Track stake transaction start
+    ParallaxService.addSpanEvent('staking_transaction_start', {
+      address: this.address,
+      validatorsCount: this.validatorsCount,
+      to: this.transactionData.to,
+      value: this.transactionData.value,
+      network: this.network?.type?.name || 'Unknown'
+    }).catch(err => {
+      console.error('Failed to track staking transaction start:', err);
+    });
+
     return this.web3.eth
       .sendTransaction(this.transactionData)
       .on('transactionHash', res => {
         this.pendingTxHash = res;
+
+        // Track transaction hash received
+        ParallaxService.addSpanEvent('staking_transaction_hash', {
+          address: this.address,
+          txHash: res,
+          validatorsCount: this.validatorsCount,
+          network: this.network?.type?.name || 'Unknown'
+        }).catch(err => {
+          console.error('Failed to track staking transaction hash:', err);
+        });
       })
       .on('receipt', () => {
         this.trackDapp('StakedStakeSuccess', { wallet: this.identifier });
         this.txReceipt = true;
+
+        // Track transaction success
+        ParallaxService.addSpanEvent('staking_transaction_success', {
+          address: this.address,
+          txHash: this.pendingTxHash,
+          validatorsCount: this.validatorsCount,
+          network: this.network?.type?.name || 'Unknown'
+        }).catch(err => {
+          console.error('Failed to track staking transaction success:', err);
+        });
       })
       .catch(err => {
         this.trackDapp('StakedStakeFail');
+
+        // Track transaction error
+        ParallaxService.addSpanEvent('staking_transaction_error', {
+          address: this.address,
+          error: err?.message || err?.toString(),
+          validatorsCount: this.validatorsCount,
+          network: this.network?.type?.name || 'Unknown'
+        }).catch(err => {
+          console.error('Failed to track staking transaction error:', err);
+        });
+
         const error = handleError(err);
         if (error) Toast(err, {}, ERROR);
       });
