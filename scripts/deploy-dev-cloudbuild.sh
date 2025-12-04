@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Deploy MEW to GKE (dev environment)
-# Usage: ./scripts/deploy-dev.sh
+# Deploy MEW to GKE (dev environment) using Cloud Build
+# Usage: ./scripts/deploy-dev-cloudbuild.sh
 #
-# Builds Docker image with git SHA tag and deploys via Helm.
-# Fetches NPM_TOKEN from GCP Secret Manager for build-time dependencies.
+# Builds Docker image using Google Cloud Build (much faster than local)
+# and deploys via Helm.
 
 set -e
 
@@ -22,36 +22,19 @@ CHART_PATH="$DEPLOY_DIR/apps/mew/chart"
 RELEASE_NAME="mew-app-dev"
 FULL_IMAGE="$GCR_PROJECT/$IMAGE_NAME:$GIT_SHA"
 
-echo "=== Deploying $SERVICE ==="
+echo "=== Deploying $SERVICE using Cloud Build ==="
 echo "Git SHA: $GIT_SHA"
 echo "Image: $FULL_IMAGE"
 echo "Chart: $CHART_PATH"
 echo "Release: $RELEASE_NAME"
 echo ""
 
-# Fetch NPM_TOKEN from GCP Secret Manager and write to temp file for BuildKit secret
-echo ">>> Fetching NPM_TOKEN from Secret Manager..."
-NPM_TOKEN_FILE=$(mktemp)
-trap "rm -f $NPM_TOKEN_FILE" EXIT
-
-gcloud secrets versions access latest --secret="npm-token" --project="$GCP_PROJECT" > "$NPM_TOKEN_FILE"
-if [[ ! -s "$NPM_TOKEN_FILE" ]]; then
-    echo "ERROR: Failed to fetch NPM_TOKEN from Secret Manager"
-    echo "Ensure the secret 'npm-token' exists in project '$GCP_PROJECT'"
-    exit 1
-fi
-echo ">>> NPM_TOKEN retrieved successfully"
-echo ""
-
-# Build and push Docker image using BuildKit secrets
-echo ">>> Building and pushing $FULL_IMAGE..."
-DOCKER_BUILDKIT=1 docker buildx build --platform linux/amd64 \
-    --secret id=npm_token,src="$NPM_TOKEN_FILE" \
-    -f "$DEPLOY_DIR/docker/Dockerfile" \
-    -t "$FULL_IMAGE" \
-    --memory 16g \
-    --memory-swap 16g \
-    --push \
+# Build using Google Cloud Build (much faster, no local resources used)
+echo ">>> Building $FULL_IMAGE using Cloud Build..."
+gcloud builds submit \
+    --config="$DEPLOY_DIR/cloudbuild.yaml" \
+    --project="$GCP_PROJECT" \
+    --substitutions=SHORT_SHA="$GIT_SHA" \
     "$REPO_ROOT"
 
 echo ""

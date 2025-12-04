@@ -19,19 +19,20 @@ WORKDIR /app
 # Upgrade npm
 RUN npm install -g npm@^8.8
 
-# Copy package files
+# Copy package files and scripts needed for preinstall
 COPY package*.json ./
 COPY .npmrc ./
+COPY scripts/ ./scripts/
 
 # Install dependencies using BuildKit secret for NPM_TOKEN
 RUN --mount=type=secret,id=npm_token \
-    NPM_TOKEN=$(cat /run/secrets/npm_token) npm ci --legacy-peer-deps
+    NPM_TOKEN=$(cat /run/secrets/npm_token) npm install --legacy-peer-deps
 
 # Copy application code
 COPY . .
 
-# Build the application
-RUN npm run build:nohash
+# Build the application (skip update steps to avoid external fetches)
+RUN WEBPACK_INTEGRITY=false ROUTER_MODE=hash npx vue-cli-service build
 
 # Production stage
 FROM nginx:alpine
