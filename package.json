@@ -60,6 +60,7 @@
     "@lokalise/node-api": "8.0.1",
     "@mathieustan/vue-intercom": "0.0.9",
     "@miradorlabs/parallax": "1.0.6",
+    "mirador-gateway-parallax": "https://storage.googleapis.com/mirador-shd-packages/gateway/parallax/mirador-gateway-parallax-1.0.3.tgz",
     "@myetherwallet/eth2-keystore": "0.3.1",
     "@sentry/browser": "7.109.0",
     "@sentry/tracing": "7.120.3",
