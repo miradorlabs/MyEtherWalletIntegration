@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mew.fullname" . }}-config
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "mew.labels" . | nindent 4 }}
+data:
+  # Environment configuration
+  # Note: This is a static SPA, so most config is baked in at build time.
+  # Add any runtime environment variables here if needed.
+  NODE_ENV: "production"
