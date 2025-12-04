@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 
-# Build stage
-FROM node:14-bullseye AS builder
+# Development image - runs dev server instead of building
+FROM node:14-bullseye
 
 # Install system dependencies
 RUN apt update && apt install -y \
@@ -10,8 +10,8 @@ RUN apt update && apt install -y \
     nasm \
     && rm -rf /var/lib/apt/lists/*
 
-# Set environment variables for build
-ENV NODE_OPTIONS=--max-old-space-size=8192
+# Set environment variables
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Set working directory
 WORKDIR /app
@@ -31,24 +31,8 @@ RUN --mount=type=secret,id=npm_token \
 # Copy application code
 COPY . .
 
-# Build the application (skip update steps to avoid external fetches)
-RUN WEBPACK_INTEGRITY=false ROUTER_MODE=hash npx vue-cli-service build
+# Expose dev server port
+EXPOSE 8080
 
-# Production stage
-FROM nginx:alpine
-
-# Copy built files from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose HTTP port
-EXPOSE 80
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/index.html || exit 1
-
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start dev server
+CMD ["npm", "run", "juststart"]

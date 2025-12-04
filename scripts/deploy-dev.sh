@@ -43,14 +43,12 @@ fi
 echo ">>> NPM_TOKEN retrieved successfully"
 echo ""
 
-# Build and push Docker image using BuildKit secrets
-echo ">>> Building and pushing $FULL_IMAGE..."
+# Build and push Docker image using BuildKit secrets (dev mode - no build step)
+echo ">>> Building and pushing $FULL_IMAGE (dev mode)..."
 DOCKER_BUILDKIT=1 docker buildx build --platform linux/amd64 \
     --secret id=npm_token,src="$NPM_TOKEN_FILE" \
     -f "$DEPLOY_DIR/docker/Dockerfile" \
     -t "$FULL_IMAGE" \
-    --memory 16g \
-    --memory-swap 16g \
     --push \
     "$REPO_ROOT"
 
